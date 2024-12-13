@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Socket.IO Chat with Firestore</title>
+    <style>
+      /* Styling */
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #f0f0f0;
+      }
+      .chat-container {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: white;
+        padding: 20px;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+      }
+      .messages {
+        max-height: 300px;
+        overflow-y: auto;
+        margin-bottom: 20px;
+        padding: 10px;
+        background-color: #f9f9f9;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      .message {
+        margin: 5px 0;
+        padding: 5px;
+        background-color: #f1f1f1;
+        border-radius: 5px;
+      }
+      .message-sender {
+        font-weight: bold;
+      }
+      .message-text {
+        font-size: 14px;
+      }
+      input[type="text"],
+      button {
+        padding: 10px;
+        font-size: 16px;
+        margin-top: 10px;
+      }
+      button {
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="chat-container">
+      <h2>Socket.IO Chat</h2>
+
+      <!-- Room Selector -->
+      <div>
+        <label for="roomId">Room ID: </label>
+        <input type="text" id="roomId" placeholder="Enter Room ID" />
+      </div>
+
+      <div>
+        <label for="senderName">Your Name: </label>
+        <input type="text" id="senderName" placeholder="Enter Your Name" />
+      </div>
+
+      <button id="joinRoom">Join Room</button>
+
+      <div class="messages" id="messages">
+        <!-- Messages will appear here -->
+      </div>
+
+      <input
+        type="text"
+        id="messageText"
+        placeholder="Type your message here"
+      />
+      <button id="sendMessage">Send Message</button>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+
+      // DOM elements
+      const roomIdInput = document.getElementById("roomId");
+      const senderNameInput = document.getElementById("senderName");
+      const joinRoomButton = document.getElementById("joinRoom");
+      const messagesContainer = document.getElementById("messages");
+      const messageInput = document.getElementById("messageText");
+      const sendMessageButton = document.getElementById("sendMessage");
+
+      // Join room event listener
+      joinRoomButton.addEventListener("click", () => {
+        const roomId = roomIdInput.value.trim();
+        const senderName = senderNameInput.value.trim();
+
+        if (roomId && senderName) {
+          socket.emit("join_room", roomId);
+          console.log(`User ${senderName} joined room ${roomId}`);
+        } else {
+          alert("Please enter both Room ID and Your Name.");
+        }
+      });
+
+      // Send message event listener
+      sendMessageButton.addEventListener("click", () => {
+        const roomId = roomIdInput.value.trim();
+        const senderName = senderNameInput.value.trim();
+        const messageText = messageInput.value.trim();
+
+        if (roomId && senderName && messageText) {
+          const messageData = {
+            roomId,
+            sender: senderName,
+            message: messageText,
+          };
+
+          socket.emit("send_message", messageData);
+          messageInput.value = ""; // Clear the input
+        } else {
+          alert("Please enter a message to send.");
+        }
+      });
+
+      // Load previous messages when joining room
+      socket.on("load_previous_messages", (messages) => {
+        messagesContainer.innerHTML = ""; // Clear any existing messages
+
+        if (messages.length === 0) {
+          const noMessagesDiv = document.createElement("div");
+          noMessagesDiv.textContent = "No previous messages in this room.";
+          messagesContainer.appendChild(noMessagesDiv);
+        } else {
+          messages.forEach((msg) => {
+            const messageDiv = document.createElement("div");
+            messageDiv.classList.add("message");
+
+            const senderDiv = document.createElement("div");
+            senderDiv.classList.add("message-sender");
+            senderDiv.textContent = msg.sender;
+
+            const textDiv = document.createElement("div");
+            textDiv.classList.add("message-text");
+            textDiv.textContent = msg.message;
+
+            messageDiv.appendChild(senderDiv);
+            messageDiv.appendChild(textDiv);
+            messagesContainer.appendChild(messageDiv);
+          });
+        }
+
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      });
+
+      // Receive message from server
+      socket.on("receive_message", (data) => {
+        const { sender, message } = data;
+
+        // Display the message
+        const messageDiv = document.createElement("div");
+        messageDiv.classList.add("message");
+
+        const senderDiv = document.createElement("div");
+        senderDiv.classList.add("message-sender");
+        senderDiv.textContent = sender;
+
+        const textDiv = document.createElement("div");
+        textDiv.classList.add("message-text");
+        textDiv.textContent = message;
+
+        messageDiv.appendChild(senderDiv);
+        messageDiv.appendChild(textDiv);
+        messagesContainer.appendChild(messageDiv);
+
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      });
+    </script>
+  </body>
+</html>
